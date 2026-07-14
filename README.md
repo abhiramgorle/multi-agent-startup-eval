@@ -159,10 +159,61 @@ docker run -e navigator_api=your_key -p 8000:8000 startup-eval
 ## Running Tests
 
 ```bash
-pytest -v
+pytest -v                  # all 103 tests (no API key needed — fully mocked)
+pytest tests/test_agents.py          # agent unit tests
+pytest tests/test_debate_engine.py   # engine & context manager tests
+pytest tests/test_api.py             # API integration tests
+pytest tests/test_validation.py      # validation framework tests
 ```
 
-Tests use mocked LLM calls — no API key needed.
+---
+
+## Validation & AI Performance Benchmarking
+
+A dedicated framework measures how accurately the multi-agent system evaluates startups against a synthetic ground-truth dataset.
+
+### Synthetic Ground-Truth Dataset — 15 Cases
+
+3 cases per tier covering well-defined startup archetypes:
+
+| Tier | Label | Examples |
+|------|-------|---------|
+| 1 | Strong Invest (8–10) | AI DevOps platform with $1.2M ARR, Clinical AI with 3,200 physicians |
+| 2 | Invest (6.5–7.9) | Robotics talent marketplace, EdTech AI tutor |
+| 3 | Conditional Pass (5–6.4) | Anonymous feedback network, carbon credit marketplace |
+| 4 | Pass (3.5–4.9) | NFT-gated concierge, thin GPT wrapper with 38% churn |
+| 5 | Strong Pass (1–3.4) | Perpetual motion device, scraped social data reseller |
+
+### Metrics Computed
+
+| Category | Metrics |
+|----------|---------|
+| **Accuracy** | Score MAE, RMSE, within-range rate, recommendation accuracy, tier accuracy (strict & ±1) |
+| **Agent behavior** | Inter-agent std dev, score delta through debate, early-stop rate |
+| **Efficiency** | Avg latency, P95 latency, avg debate rounds |
+| **Consistency** | Score std dev across reruns, recommendation consistency rate |
+| **Breakdown** | Per-tier accuracy, per-agent mean/std, CI grade (A–F) |
+
+### CI Gate
+
+Hard fails if:
+- Within-range rate < 50%
+- Recommendation accuracy < 40%
+- Tier accuracy (lenient) < 60%
+- Score MAE > 2.5
+
+### Running the Benchmark
+
+```bash
+# Requires navigator_api key in .env
+
+python scripts/run_evaluation.py                   # full 15-case benchmark
+python scripts/run_evaluation.py --subset 1        # Tier 1 only (3 cases)
+python scripts/run_evaluation.py --reruns 3        # consistency check (3 runs/case)
+python scripts/run_evaluation.py --no-parallel     # sequential (useful for debugging)
+```
+
+Outputs `evaluation_report.json` and `evaluation_report.md` with full case-by-case breakdown.
 
 ---
 
@@ -171,22 +222,30 @@ Tests use mocked LLM calls — no API key needed.
 ```
 ├── src/
 │   ├── agents/
-│   │   ├── base_agent.py          # BaseAgent with context management & LLM calls
-│   │   ├── market_analyst.py      # Market opportunity evaluator
-│   │   ├── technical_evaluator.py # Technical feasibility assessor
+│   │   ├── base_agent.py            # BaseAgent with context management & LLM calls
+│   │   ├── market_analyst.py        # Market opportunity evaluator
+│   │   ├── technical_evaluator.py   # Technical feasibility assessor
 │   │   ├── business_model_critic.py # Revenue & GTM critic
-│   │   ├── risk_assessor.py       # Risk-adjusted scoring
-│   │   └── synthesis_judge.py     # Final verdict aggregator
+│   │   ├── risk_assessor.py         # Risk-adjusted scoring
+│   │   └── synthesis_judge.py       # Final verdict aggregator
 │   ├── core/
-│   │   ├── debate_engine.py       # Parallel debate orchestration
-│   │   └── context_manager.py     # Token-aware context tracking
+│   │   ├── debate_engine.py         # Parallel debate orchestration
+│   │   └── context_manager.py       # Token-aware context tracking
 │   └── api/
-│       └── app.py                 # FastAPI REST interface
+│       └── app.py                   # FastAPI REST interface
+├── evaluation/
+│   ├── ground_truths.py             # 15 synthetic ground-truth startup cases
+│   ├── metrics.py                   # MetricsCalculator (MAE, RMSE, tier acc, etc.)
+│   ├── validator.py                 # ValidationRunner (parallel, reruns, tier analysis)
+│   └── report.py                    # ReportGenerator (JSON, Markdown, terminal + CI gate)
+├── scripts/
+│   └── run_evaluation.py            # CLI benchmark runner
 ├── tests/
-│   ├── test_agents.py             # Agent unit tests (mocked)
-│   ├── test_debate_engine.py      # Engine & context manager tests
-│   └── test_api.py                # API integration tests
-├── main.py                        # Entry point
+│   ├── test_agents.py               # Agent unit tests (mocked)
+│   ├── test_debate_engine.py        # Engine & context manager tests
+│   ├── test_api.py                  # API integration tests
+│   └── test_validation.py           # Validation framework tests (58 tests)
+├── main.py                          # Entry point
 ├── Dockerfile
 └── requirements.txt
 ```
@@ -201,3 +260,4 @@ This project demonstrates:
 - **Dynamic stopping** — variance-based consensus detection eliminates redundant debate rounds
 - **Context-aware reasoning** — summarization strategy keeps agents within LLM token limits while maintaining coherence across multi-turn debates
 - **Production-grade REST API** — typed Pydantic schemas, proper error handling, async endpoints
+- **AI performance benchmarking** — synthetic ground-truth dataset with MAE/RMSE/tier-accuracy metrics, CI gate, and consistency reruns
