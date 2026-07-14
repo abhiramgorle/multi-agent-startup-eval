@@ -2,7 +2,8 @@
 
 A production-grade **5-agent debate-style AI workflow** that evaluates startup concepts using parallel LLM calls, dynamic stopping criteria, and context-aware reasoning — all exposed via a REST API.
 
-**Live API:** <!-- DEPLOY_URL -->
+**Live API:** https://api-production-c3ce.up.railway.app
+**Docs:** https://api-production-c3ce.up.railway.app/docs
 
 ---
 
